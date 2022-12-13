@@ -1,83 +1,109 @@
 package nes
 
+// Status Register flags
 const (
-	CarryFlag     int = 0000_0001
-	ZeroFlag      int = 0000_0010
-	InterruptFlag int = 0000_0100
-	DecimalFlag   int = 0000_1000
-	BreakFlag     int = 0001_0000
-	OverflowFlag  int = 0100_0000
-	NegativeFlag  int = 1000_0000
+	CarryFlag     uint8 = 0b0000_0001
+	ZeroFlag      uint8 = 0b0000_0010
+	InterruptFlag uint8 = 0b0000_0100
+	DecimalFlag   uint8 = 0b0000_1000
+	BreakFlag     uint8 = 0b0001_0000
+	OverflowFlag  uint8 = 0b0100_0000
+	NegativeFlag  uint8 = 0b1000_0000
 )
 
 // CPU type
 type CPU struct {
-	registerA      int
-	registerX      int
-	registerY      int
-	programCounter int
-	stackPointer   uint
-	statusRegister int
-	memory         []int
+	RegisterA      uint8
+	RegisterX      uint8
+	RegisterY      uint8
+	ProgramCounter uint16
+	StackPointer   uint8
+	StatusRegister uint8
+	memory         []uint8
 }
 
 // CPU instance
 var cpu = CPU{
-	registerA:      0,
-	registerX:      0,
-	registerY:      0,
-	programCounter: 0,
-	stackPointer:   0,
-	statusRegister: 0,
-	memory:         []int{},
+	RegisterA:      0,
+	RegisterX:      0,
+	RegisterY:      0,
+	ProgramCounter: 0,
+	StackPointer:   0,
+	StatusRegister: 0,
+	memory:         []uint8{},
 }
 
-func ProgramLoop(program []int) {
+// ProgramLoop runs the program
+func ProgramLoop(program []uint8) CPU {
 
 	cpu.memory = program
 
-	for cpu.programCounter < len(program) {
+	for cpu.ProgramCounter < uint16(len(program)) {
 		// fetch
-		opcode := cpu.memory[cpu.programCounter]
-		cpu.programCounter++
+		opcode := cpu.memory[cpu.ProgramCounter]
 
 		switch opcode {
-		case BRK:
+		// BRK implementation
+		case 0x00:
+			cpu.StatusRegister |= BreakFlag
 			break
-		case LDA:
-			param := cpu.memory[cpu.programCounter]
-			cpu.registerA = param
-			cpu.programCounter++
+			// LDA implementations
+		case 0xA9:
+			lda(getAddress(Immediate, 0))
+		case 0xA5:
+			lda(getAddress(ZeroPage, 0))
+			// todo: implement other addressing modes
 
-			checkFlag(cpu.registerA, ZeroFlag)
-			checkFlag(cpu.registerA, NegativeFlag)
-		case INX:
-			cpu.registerX++
+			// INX implementation
+		case 0xE8:
+			cpu.RegisterX++
 
-			checkFlag(cpu.registerX, ZeroFlag)
-			checkFlag(cpu.registerX, NegativeFlag)
+			checkFlag(cpu.RegisterX, ZeroFlag)
+			checkFlag(cpu.RegisterX, NegativeFlag)
 		}
+
+		cpu.ProgramCounter++
 	}
 
 	// decode
 	// execute
+
+	return cpu
 }
 
-func checkFlag(register int, flag int) {
+func lda(address uint16) {
+	cpu.RegisterA = cpu.memory[address]
+	checkFlag(cpu.RegisterA, ZeroFlag)
+	checkFlag(cpu.RegisterA, NegativeFlag)
+}
+
+// checkFlag checks the status register
+func checkFlag(register uint8, flag uint8) {
 	switch flag {
 	case ZeroFlag:
 		if register == 0 {
-			cpu.statusRegister |= ZeroFlag
+			cpu.StatusRegister |= ZeroFlag
 		} else {
-			cpu.statusRegister &= ^ZeroFlag
+			cpu.StatusRegister &= ^ZeroFlag
 		}
 	case NegativeFlag:
 		if register < 0 {
-			cpu.statusRegister |= NegativeFlag
+			cpu.StatusRegister |= NegativeFlag
 		} else {
-			cpu.statusRegister &= ^NegativeFlag
+			cpu.StatusRegister &= ^NegativeFlag
 		}
+	default:
+		return
 	}
+}
 
-	return
+// read16 reads a 16 bit value from memory
+func read16(address uint16) uint16 {
+	return uint16(cpu.memory[address]) | uint16(cpu.memory[address+1])<<8
+}
+
+// write16 writes a 16 bit value to memory
+func write16(address uint16, value uint16) {
+	cpu.memory[address] = uint8(value)
+	cpu.memory[address+1] = uint8(value >> 8)
 }

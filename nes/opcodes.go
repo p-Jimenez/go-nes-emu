@@ -1,12 +1,6 @@
 package nes
 
 // opcodes
-const (
-	BRK = 0x00
-	LDA = 0xA9
-	TAX = 0xAA
-	INX = 0xE8
-)
 
 type AddressingMode struct {
 	bytes  int
@@ -27,3 +21,26 @@ var (
 	// +1 cycle if page crossed
 	IndirectY AddressingMode = AddressingMode{bytes: 2, cycles: 5}
 )
+
+func getAddress(mode AddressingMode, address uint16) uint16 {
+	switch mode {
+	case Immediate:
+		return cpu.ProgramCounter
+	case ZeroPage:
+		return uint16(cpu.memory[address])
+	case ZeroPageX:
+		return uint16(cpu.memory[address]) + uint16(cpu.RegisterX)
+	case Absolute:
+		return read16(cpu.ProgramCounter)
+	case AbsoluteX:
+		return read16(cpu.ProgramCounter) + uint16(cpu.RegisterX)
+	case AbsoluteY:
+		return read16(cpu.ProgramCounter) + uint16(cpu.RegisterY)
+	case IndirectX:
+		return read16(uint16(cpu.memory[address]) + uint16(cpu.RegisterX))
+	case IndirectY:
+		return read16(uint16(cpu.memory[address])) + uint16(cpu.RegisterY)
+	default:
+		return 0
+	}
+}
